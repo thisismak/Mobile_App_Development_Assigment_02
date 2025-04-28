@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>開源硬體清單</title>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js"></script>
+    <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css" />
+    <script src="https://unpkg.com/ionicons@latest/dist/ionicons.js"></script>
+    <!-- 添加 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      ion-card { 
+        margin: 1rem; 
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+        border-radius: 8px; 
+        overflow: hidden; 
+        animation: fadeIn 0.3s ease-in forwards; 
+      }
+      .card-content { padding: 1rem; }
+      .item-title { font-weight: bold; font-size: 1.2em; margin-bottom: 0.5rem; }
+      .item-subtitle { color: var(--ion-color-medium); font-size: 0.9em; margin-bottom: 0.5rem; }
+      .item-features { 
+        display: flex; 
+        align-items: center; 
+        color: #2a7de1; 
+        margin: 0.5rem 0; 
+        font-size: 0.95em; 
+      }
+      .item-features ion-icon { margin-right: 0.5rem; font-size: 1.2em; color: #2a7de1; }
+      .item-description { 
+        display: flex; 
+        align-items: center; 
+        color: #555; 
+        margin: 0.5rem 0; 
+        font-size: 0.95em; 
+      }
+      .item-description ion-icon { margin-right: 0.5rem; font-size: 1.2em; color: #555; }
+      .tag-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+      .item-image { 
+        width: 100%; 
+        height: auto; 
+        max-height: 200px; 
+        object-fit: cover; 
+        border-bottom: 1px solid #eee; 
+      }
+      .item-video { 
+        width: 100%; 
+        height: 200px; 
+        border: none; 
+        margin-top: 0.5rem; 
+      }
+      @keyframes fadeIn { 
+        from { opacity: 0; transform: translateY(10px); } 
+        to { opacity: 1; transform: translateY(0); } 
+      }
+      .sort-direction { display: flex; gap: 1rem; margin-left: 1rem; }
+      #hardwareList.list-view ion-card { 
+        width: 100%; 
+        max-width: 600px; 
+        margin: 1rem auto; 
+      }
+      #hardwareList.grid-view { 
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+        gap: 1rem; 
+        padding: 1rem; 
+      }
+      #hardwareList.grid-view ion-card { margin: 0; }
+      .view-toggle { margin-left: auto; padding-right: 1rem; }
+      /* 統計圖表樣式 */
+      #statsChartContainer {
+        padding: 1rem;
+        max-width: 600px;
+        margin: 0 auto 1rem auto;
+      }
+    </style>
+  </head>
+  <body>
+    <ion-app>
+      <ion-header>
+        <ion-toolbar color="primary"> <!-- 工具欄，顏色設為主要顏色 -->
+          <ion-buttons slot="start"> <!-- 將按鈕放在左側 -->
+            <ion-button id="refreshButton" slot="icon-only"> <!-- 左側按鈕 -->
+              <ion-icon name="refresh" ></ion-icon> <!-- 使用的圖標 -->
+            </ion-button>
+          </ion-buttons>
+          <ion-title>開源硬體清單</ion-title>
+          <ion-buttons slot="end" class="view-toggle"> <!-- 在工具欄右側顯示的按鈕 -->
+            <ion-button id="toggleListView"> <!-- 切換到列表視圖的按鈕 -->
+              <ion-icon name="list-outline"></ion-icon> <!-- 列表視圖圖標 -->
+            </ion-button>
+            <ion-button id="toggleGridView"> <!-- 切換到網格視圖的按鈕 -->
+              <ion-icon name="grid-outline"></ion-icon> <!-- 網格視圖圖標 -->
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+        <ion-searchbar placeholder="搜尋產品名稱或功能..." color="light"></ion-searchbar>
+        <ion-item lines="none">
+          <ion-label>分類</ion-label>
+          <ion-select interface="popover" multiple="true" placeholder="選擇分類（可多選）">
+            <ion-select-option value="微控制器">微控制器</ion-select-option>
+            <ion-select-option value="感測器">感測器</ion-select-option>
+            <ion-select-option value="通訊模組">通訊模組</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <ion-item lines="none">
+          <ion-label>標籤</ion-label>
+          <ion-select id="tagSelect" interface="popover" multiple="true" placeholder="選擇標籤（可多選）">
+            <ion-select-option value="Wi-Fi">Wi-Fi</ion-select-option>
+            <ion-select-option value="藍牙">藍牙</ion-select-option>
+            <ion-select-option value="低功耗">低功耗</ion-select-option>
+            <ion-select-option value="溫濕度">溫濕度</ion-select-option>
+            <ion-select-option value="測距">測距</ion-select-option>
+            <ion-select-option value="長距離">長距離</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <ion-item lines="none">
+          <ion-label>排序欄位</ion-label>
+          <ion-select id="sortField" interface="popover" placeholder="選擇排序欄位">
+            <ion-select-option value="name">名稱</ion-select-option>
+            <ion-select-option value="type">類型</ion-select-option>
+            <ion-select-option value="features">功能</ion-select-option>
+          </ion-select>
+          <div class="sort-direction">
+            <ion-radio-group id="sortDirection" value="asc">
+              <ion-item lines="none">
+                <ion-label>升冪</ion-label>
+                <ion-radio slot="start" value="asc"></ion-radio>
+              </ion-item>
+              <ion-item lines="none">
+                <ion-label>降冪</ion-label>
+                <ion-radio slot="start" value="desc"></ion-radio>
+              </ion-item>
+            </ion-radio-group>
+          </div>
+        </ion-item>
+      </ion-header>
+      <!-- 添加 skeleton-text 作為佔位符 -->
+      <ion-list id="courseList">
+        <ion-item class="skeleton-item">
+          <ion-thumbanil slot="start">
+            <ion-skeleton-text  animated="true"></ion-skeleton-text>
+          </ion-thumbanil>
+          <ion-label>
+            <h3>
+              <ion-skeleton-text
+              animated="true"
+              style="width: 80%"
+              ></ion-skeleton-text>
+            </h3>
+            <p>
+              <ion-skeleton-text
+              animated="true"
+              style="width: 60%"
+              ></ion-skeleton-text>
+            </p>
+            <p>
+              <ion-skeleton-text
+              animated="true"
+              style="width: 30%"
+              ></ion-skeleton-text>
+            </p>
+          </ion-label>
+          <ion-skeleton-text animated></ion-skeleton-text>
+        </ion-item>
+      </ion-list>
+      <ion-content>
+        <div id="hardwareList" class="list-view"></div>
+        <!-- 將統計圖表移動到產品列表下方 -->
+        <div id="statsChartContainer">
+          <canvas id="statsChart"></canvas>
+        </div>
+        <ion-toast id="errorToast" duration="5000" color="danger"></ion-toast>
+      </ion-content>
+    </ion-app>
+    <script src="bundle.js"></script>
+  </body>
+</html>

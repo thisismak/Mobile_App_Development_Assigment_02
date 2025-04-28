@@ -1,0 +1,23 @@
+{
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "esbuild": "^0.25.3",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  },
+  "name": "assignment02",
+  "version": "1.0.0",
+  "description": "## 學生資料",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npm run build -- --watch",
+    "build": "esbuild app.ts --bundle --outfile=bundle.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ionic/core": "^8.5.5"
+  }
+}
