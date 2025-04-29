@@ -17,6 +17,7 @@ const searchButton = document.querySelector('#searchButton') as HTMLIonButtonEle
 const clearSearchButton = document.querySelector('#clearSearchButton') as HTMLIonButtonElement;
 const categorySelect = document.querySelector('#categorySelect') as HTMLIonSelectElement | null;
 const sortSelect = document.querySelector('#sortSelect') as HTMLIonSelectElement | null;
+const toggleBookmarksButton = document.querySelector('#toggleBookmarksButton') as HTMLIonButtonElement;
 
 // 分頁與過濾變數
 let currentPage = 1;
@@ -28,6 +29,7 @@ let categoryFilter: string | null = null;
 let sortField: string | null = 'published_at';
 let sortOrder: string | null = 'desc';
 let isBookmarksLoaded = false;
+let showBookmarksOnly: boolean = false;
 
 // Skeleton 模板
 const skeletonSlide = document.createElement('ion-slide');
@@ -44,25 +46,6 @@ skeletonSlide.innerHTML = `
     </ion-card-content>
   </ion-card>
 `;
-
-// 驗證搜尋關鍵字
-function validateSearchQuery(query: string): { valid: boolean; message: string } {
-  const trimmedQuery = query.trim();
-  // 檢查是否為空
-  if (!trimmedQuery) {
-    return { valid: false, message: '搜尋關鍵字不能為空' };
-  }
-  // 檢查長度（1-50 字符）
-  if (trimmedQuery.length < 1 || trimmedQuery.length > 50) {
-    return { valid: false, message: '關鍵字長度必須在 1 到 50 個字符之間' };
-  }
-  // 檢查非法字符（允許字母、數字、空格、常見標點）
-  const invalidCharRegex = /[<>;{}()[\]\\/*+=|]/;
-  if (invalidCharRegex.test(trimmedQuery)) {
-    return { valid: false, message: '關鍵字包含非法字符（例如 <, >, ;）' };
-  }
-  return { valid: true, message: '' };
-}
 
 // 書籤功能
 async function bookmarkItem(item_id: number, icon: HTMLIonIconElement) {
@@ -82,6 +65,10 @@ async function bookmarkItem(item_id: number, icon: HTMLIonIconElement) {
       bookmarkedItems.push(item_id);
       icon.classList.add('bookmarked');
       icon.name = 'bookmark';
+      if (showBookmarksOnly) {
+        currentPage = 1;
+        loadItems();
+      }
     }
   } catch (error) {
     errorToast.message = `添加書籤失敗：${error}`;
@@ -106,6 +93,10 @@ async function unBookmarkItem(item_id: number, icon: HTMLIonIconElement) {
       bookmarkedItems = bookmarkedItems.filter(id => id !== item_id);
       icon.classList.remove('bookmarked');
       icon.name = 'bookmark-outline';
+      if (showBookmarksOnly) {
+        currentPage = 1;
+        loadItems();
+      }
     }
   } catch (error) {
     errorToast.message = `移除書籤失敗：${error}`;
@@ -326,7 +317,7 @@ async function loadItems(append: boolean = false) {
   }
 
   isLoading = true;
-  console.log('Loading items...', { page: currentPage, append, search: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
+  console.log('Loading items...', { page: currentPage, append, search: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder, bookmarksOnly: showBookmarksOnly, bookmarkedItems });
   if (!append) {
     hardwareSlides.textContent = '';
     hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
@@ -352,6 +343,17 @@ async function loadItems(append: boolean = false) {
       bookmarkedItems = await autoRetryGetBookmarks();
     }
 
+    // 若無收藏項目且啟用收藏模式，提前返回
+    if (showBookmarksOnly && bookmarkedItems.length === 0) {
+      hardwareSlides.textContent = '';
+      errorToast.message = '尚未收藏任何項目';
+      errorToast.present();
+      isLoading = false;
+      loader.style.display = 'none';
+      updatePaginationButtons();
+      return;
+    }
+
     let params = new URLSearchParams();
     params.set('page', currentPage.toString());
     if (searchQuery) {
@@ -364,6 +366,11 @@ async function loadItems(append: boolean = false) {
       params.set('sort', sortField);
       params.set('order', sortOrder);
     }
+    if (showBookmarksOnly && bookmarkedItems.length > 0) {
+      params.set('ids', bookmarkedItems.join(','));
+    }
+
+    console.log('Fetch URL:', `${baseUrl}/hardware?${params}`);
     let res = await fetch(`${baseUrl}/hardware?${params}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
@@ -419,13 +426,16 @@ async function loadItems(append: boolean = false) {
       };
     });
 
+    // 客戶端過濾，確保僅顯示收藏項目
+    uiItems = uiItems.filter(item => !showBookmarksOnly || bookmarkedItems.includes(item.id));
+
     totalPages = Math.ceil(json.pagination.total / json.pagination.limit);
     console.log('Pagination:', { currentPage, totalPages, items: uiItems });
 
     renderItems(uiItems, append);
     updatePaginationButtons();
     if (uiItems.length === 0 && !append) {
-      errorToast.message = '未找到匹配的產品';
+      errorToast.message = showBookmarksOnly && bookmarkedItems.length === 0 ? '尚未收藏任何項目' : '未找到匹配的產品';
       errorToast.present();
     }
     currentPage++;
@@ -455,39 +465,27 @@ function setupInfiniteScroll() {
 
 // 搜尋、過濾與排序功能
 function setupSearchFilterAndSort() {
-  if (!searchInput || !searchButton || !clearSearchButton || !categorySelect || !sortSelect) {
-    console.error('Search, filter, or sort elements not found');
-    errorToast.message = '搜尋、過濾或排序功能初始化失敗';
+  if (!searchInput || !searchButton || !clearSearchButton || !categorySelect || !sortSelect || !toggleBookmarksButton) {
+    console.error('Search, filter, sort, or bookmarks button elements not found');
+    errorToast.message = '搜尋、過濾、排序或收藏功能初始化失敗';
     errorToast.present();
     return;
   }
 
   searchButton.addEventListener('click', () => {
-    const query = searchInput.value ? searchInput.value.trim() : '';
-    const validation = validateSearchQuery(query);
-    if (!validation.valid && query) {
-      errorToast.message = validation.message;
-      errorToast.present();
-      return;
-    }
+    const query = searchInput.value ? String(searchInput.value).trim() : '';
     searchQuery = query || null;
     currentPage = 1;
-    console.log('Search initiated:', { query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
+    console.log('Search initiated:', { query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder, bookmarksOnly: showBookmarksOnly });
     loadItems();
   });
 
   searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-      const query = searchInput.value ? searchInput.value.trim() : '';
-      const validation = validateSearchQuery(query);
-      if (!validation.valid && query) {
-        errorToast.message = validation.message;
-        errorToast.present();
-        return;
-      }
+      const query = searchInput.value ? String(searchInput.value).trim() : '';
       searchQuery = query || null;
       currentPage = 1;
-      console.log('Search initiated via Enter:', { query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
+      console.log('Search initiated via Enter:', { query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder, bookmarksOnly: showBookmarksOnly });
       loadItems();
     }
   });
@@ -495,7 +493,7 @@ function setupSearchFilterAndSort() {
   categorySelect.addEventListener('ionChange', (e: CustomEvent) => {
     categoryFilter = e.detail.value || null;
     currentPage = 1;
-    console.log('Category filter changed:', { category: categoryFilter, query: searchQuery, sort: sortField, order: sortOrder });
+    console.log('Category filter changed:', { category: categoryFilter, query: searchQuery, sort: sortField, order: sortOrder, bookmarksOnly: showBookmarksOnly });
     loadItems();
   });
 
@@ -504,7 +502,16 @@ function setupSearchFilterAndSort() {
     sortField = field || null;
     sortOrder = order || null;
     currentPage = 1;
-    console.log('Sort changed:', { sort: sortField, order: sortOrder, query: searchQuery, category: categoryFilter });
+    console.log('Sort changed:', { sort: sortField, order: sortOrder, query: searchQuery, category: categoryFilter, bookmarksOnly: showBookmarksOnly });
+    loadItems();
+  });
+
+  toggleBookmarksButton.addEventListener('click', () => {
+    showBookmarksOnly = !showBookmarksOnly;
+    toggleBookmarksButton.textContent = showBookmarksOnly ? '顯示所有' : '只顯示收藏';
+    toggleBookmarksButton.setAttribute('aria-pressed', showBookmarksOnly.toString());
+    currentPage = 1;
+    console.log('Bookmarks filter toggled:', { bookmarksOnly: showBookmarksOnly, query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
     loadItems();
   });
 
@@ -522,8 +529,11 @@ function setupSearchFilterAndSort() {
     categoryFilter = null;
     sortField = 'published_at';
     sortOrder = 'desc';
+    showBookmarksOnly = false;
+    toggleBookmarksButton.textContent = '只顯示收藏';
+    toggleBookmarksButton.setAttribute('aria-pressed', 'false');
     currentPage = 1;
-    console.log('Search, filter, and sort cleared');
+    console.log('Search, filter, sort, and bookmarks cleared');
     loadItems();
   });
 }
@@ -559,7 +569,8 @@ if (
   searchButton &&
   clearSearchButton &&
   categorySelect &&
-  sortSelect
+  sortSelect &&
+  toggleBookmarksButton
 ) {
   refreshButton.addEventListener('click', () => loadItems());
   logoutButton.addEventListener('click', logout);

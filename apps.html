@@ -32,6 +32,9 @@
         flex: 1;
         min-width: 150px;
       }
+      .filter-bar ion-button {
+        min-width: 100px;
+      }
       .pagination {
         text-align: center;
         margin: 1rem 0;
@@ -100,6 +103,7 @@
               <ion-select-option value="title-desc">標題（Z-A）</ion-select-option>
             </ion-select>
             <ion-button id="searchButton">搜尋</ion-button>
+            <ion-button id="toggleBookmarksButton">只顯示收藏</ion-button>
             <ion-button id="clearSearchButton" fill="outline">清除</ion-button>
           </div>
           <ion-slides id="hardwareSlides"></ion-slides>
@@ -113,7 +117,7 @@
             <ion-button id="refreshButton">刷新</ion-button>
           </div>
         </div>
-        <ion-toast id="errorToast" duration="5000" color="danger"></ion-toast>
+        <ion-toast id="errorToast" duration="5000" color="danger" aria-live="assertive"></ion-toast>
         <ion-toast id="successToast" duration="3000" color="success"></ion-toast>
       </ion-content>
     </ion-app>
