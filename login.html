@@ -102,7 +102,7 @@
             successToast.present();
             setTimeout(() => {
               window.location.href = 'apps.html';
-            }, 1500); // 延遲跳轉，確保 localStorage 寫入
+            }, 1500);
           } else {
             console.error('No token received:', json);
             errorToast.message = '登錄成功，但未收到 token';

@@ -92,7 +92,12 @@
             <ion-input id="searchInput" placeholder="輸入關鍵字搜尋產品..." type="text"></ion-input>
             <ion-select id="categorySelect" placeholder="選擇類別" interface="popover">
               <ion-select-option value="">全部</ion-select-option>
-              <!-- 類別將由 app.ts 動態填充 -->
+            </ion-select>
+            <ion-select id="sortSelect" placeholder="排序方式" interface="popover">
+              <ion-select-option value="published_at-desc">發布日期（最新優先）</ion-select-option>
+              <ion-select-option value="published_at-asc">發布日期（最舊優先）</ion-select-option>
+              <ion-select-option value="title-asc">標題（A-Z）</ion-select-option>
+              <ion-select-option value="title-desc">標題（Z-A）</ion-select-option>
             </ion-select>
             <ion-button id="searchButton">搜尋</ion-button>
             <ion-button id="clearSearchButton" fill="outline">清除</ion-button>

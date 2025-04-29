@@ -16,6 +16,7 @@ const searchInput = document.querySelector('#searchInput') as HTMLIonInputElemen
 const searchButton = document.querySelector('#searchButton') as HTMLIonButtonElement;
 const clearSearchButton = document.querySelector('#clearSearchButton') as HTMLIonButtonElement;
 const categorySelect = document.querySelector('#categorySelect') as HTMLIonSelectElement | null;
+const sortSelect = document.querySelector('#sortSelect') as HTMLIonSelectElement | null;
 
 // 分頁與過濾變數
 let currentPage = 1;
@@ -24,6 +25,8 @@ let bookmarkedItems: number[] = [];
 let isLoading = false;
 let searchQuery: string | null = null;
 let categoryFilter: string | null = null;
+let sortField: string | null = 'published_at';
+let sortOrder: string | null = 'desc';
 let isBookmarksLoaded = false;
 
 // Skeleton 模板
@@ -304,7 +307,7 @@ async function loadItems(append: boolean = false) {
   }
 
   isLoading = true;
-  console.log('Loading items...', { page: currentPage, append, search: searchQuery, category: categoryFilter });
+  console.log('Loading items...', { page: currentPage, append, search: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
   if (!append) {
     hardwareSlides.textContent = '';
     hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
@@ -337,6 +340,10 @@ async function loadItems(append: boolean = false) {
     }
     if (categoryFilter) {
       params.set('category', categoryFilter);
+    }
+    if (sortField && sortOrder) {
+      params.set('sort', sortField);
+      params.set('order', sortOrder);
     }
     let res = await fetch(`${baseUrl}/hardware?${params}`, {
       method: 'GET',
@@ -427,11 +434,11 @@ function setupInfiniteScroll() {
   });
 }
 
-// 搜尋與過濾功能
-function setupSearchAndFilter() {
-  if (!searchInput || !searchButton || !clearSearchButton || !categorySelect) {
-    console.error('Search or filter elements not found');
-    errorToast.message = '搜尋或過濾功能初始化失敗';
+// 搜尋、過濾與排序功能
+function setupSearchFilterAndSort() {
+  if (!searchInput || !searchButton || !clearSearchButton || !categorySelect || !sortSelect) {
+    console.error('Search, filter, or sort elements not found');
+    errorToast.message = '搜尋、過濾或排序功能初始化失敗';
     errorToast.present();
     return;
   }
@@ -440,7 +447,7 @@ function setupSearchAndFilter() {
     const query = searchInput.value ? searchInput.value.trim() : '';
     searchQuery = query || null;
     currentPage = 1;
-    console.log('Search initiated:', { query: searchQuery, category: categoryFilter });
+    console.log('Search initiated:', { query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
     loadItems();
   });
 
@@ -449,7 +456,7 @@ function setupSearchAndFilter() {
       const query = searchInput.value ? searchInput.value.trim() : '';
       searchQuery = query || null;
       currentPage = 1;
-      console.log('Search initiated via Enter:', { query: searchQuery, category: categoryFilter });
+      console.log('Search initiated via Enter:', { query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
       loadItems();
     }
   });
@@ -457,7 +464,16 @@ function setupSearchAndFilter() {
   categorySelect.addEventListener('ionChange', (e: CustomEvent) => {
     categoryFilter = e.detail.value || null;
     currentPage = 1;
-    console.log('Category filter changed:', { category: categoryFilter, query: searchQuery });
+    console.log('Category filter changed:', { category: categoryFilter, query: searchQuery, sort: sortField, order: sortOrder });
+    loadItems();
+  });
+
+  sortSelect.addEventListener('ionChange', (e: CustomEvent) => {
+    const [field, order] = e.detail.value.split('-');
+    sortField = field || null;
+    sortOrder = order || null;
+    currentPage = 1;
+    console.log('Sort changed:', { sort: sortField, order: sortOrder, query: searchQuery, category: categoryFilter });
     loadItems();
   });
 
@@ -468,10 +484,15 @@ function setupSearchAndFilter() {
     if (categorySelect) {
       categorySelect.value = '';
     }
+    if (sortSelect) {
+      sortSelect.value = 'published_at-desc';
+    }
     searchQuery = null;
     categoryFilter = null;
+    sortField = 'published_at';
+    sortOrder = 'desc';
     currentPage = 1;
-    console.log('Search and filter cleared');
+    console.log('Search, filter, and sort cleared');
     loadItems();
   });
 }
@@ -506,13 +527,14 @@ if (
   searchInput &&
   searchButton &&
   clearSearchButton &&
-  categorySelect
+  categorySelect &&
+  sortSelect
 ) {
   refreshButton.addEventListener('click', () => loadItems());
   logoutButton.addEventListener('click', logout);
   setupPagination();
   setupInfiniteScroll();
-  setupSearchAndFilter();
+  setupSearchFilterAndSort();
   checkAuth().then(async (isAuthenticated) => {
     if (isAuthenticated) {
       console.log('Authentication successful, loading items');
