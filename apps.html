@@ -7,7 +7,9 @@
     <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js"></script>
     <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css" />
-    <script src="https://unpkg.com/ionicons@latest/dist/ionicons.js"></script>
+    <!-- 更新 Ionicons 腳本 -->
+    <script type="module" src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       ion-card { 
@@ -92,6 +94,10 @@
           </ion-buttons>
           <ion-title>開源硬體清單</ion-title>
           <ion-buttons slot="end" class="view-toggle">
+            <ion-button id="logoutButton">
+              <ion-icon name="log-out-outline"></ion-icon>
+              <ion-label>登出</ion-label>
+            </ion-button>
             <ion-button id="toggleListView">
               <ion-icon name="list-outline"></ion-icon>
             </ion-button>

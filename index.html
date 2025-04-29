@@ -3,288 +3,56 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>首頁 - 開源硬體探索</title>
+    <title>開源硬體清單 - 首頁</title>
     <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js"></script>
     <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css" />
+    <!-- 更新 Ionicons 腳本 -->
+    <script type="module" src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.js"></script>
     <style>
-      body {
-        margin: 0;
-        height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: linear-gradient(135deg, #e0eafc, #cfdef3);
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        overflow: hidden;
+      ion-content {
+        --background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       }
-
-      ion-app {
-        width: 100%;
-        height: 100%;
+      .welcome-container {
         display: flex;
         flex-direction: column;
-        justify-content: center;
         align-items: center;
-      }
-
-      /* 載入動畫容器 */
-      .loader-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
+        justify-content: center;
         height: 100%;
-        background-color: rgba(255, 255, 255, 0.95);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        opacity: 1;
-        transition: opacity 0.5s ease-out;
-      }
-
-      .loader-container.hidden {
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      .loader {
-        width: 60px;
-        height: 60px;
-        border: 6px solid #f3f3f3;
-        border-top: 6px solid var(--ion-color-primary, #3880ff);
-        border-radius: 50%;
-        animation: spin 1s ease-in-out infinite;
-      }
-
-      .loader-text {
-        margin-top: 1rem;
-        font-size: 1.1em;
-        color: var(--ion-color-primary, #3880ff);
-        animation: pulse 1.5s infinite;
-      }
-
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-
-      @keyframes pulse {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
-      }
-
-      /* 主內容容器 */
-      .content-container {
         text-align: center;
-        opacity: 0;
-        transform: scale(0.95);
-        transition: all 0.6s ease-out;
+        padding: 2rem;
       }
-
-      .content-container.visible {
-        opacity: 1;
-        transform: scale(1);
-      }
-
-      .title {
-        font-size: 2.5em;
-        color: #333;
+      .welcome-container h1 {
+        font-size: 2rem;
+        color: var(--ion-color-primary);
         margin-bottom: 1rem;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
-
-      .subtitle {
-        font-size: 1.2em;
-        color: #666;
+      .welcome-container p {
+        font-size: 1.2rem;
+        color: var(--ion-color-medium);
         margin-bottom: 2rem;
       }
-
       ion-button {
-        --border-radius: 12px;
-        --box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        --background: linear-gradient(45deg, #3880ff, #5fa3ff);
-        --background-hover: linear-gradient(45deg, #2a6dd9, #4e8de6);
-        font-size: 1.3em;
-        padding: 0.5rem 2rem;
-        transition: transform 0.3s ease;
-      }
-
-      ion-button:hover {
-        transform: scale(1.05);
-      }
-
-      /* 頁面切換動畫 */
-      .page-transition {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 2000;
-        pointer-events: none;
-      }
-
-      .transition-layer {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(45deg, #3880ff, #5fa3ff);
-        transform: scale(0);
-        border-radius: 50%;
-        opacity: 0;
-      }
-
-      .transition-layer.active {
-        animation: expandFade 0.8s forwards;
-      }
-
-      @keyframes expandFade {
-        0% {
-          transform: scale(0);
-          opacity: 0.8;
-          border-radius: 50%;
-        }
-        50% {
-          transform: scale(2);
-          opacity: 1;
-          border-radius: 20%;
-        }
-        100% {
-          transform: scale(3);
-          opacity: 0.9;
-          border-radius: 0;
-        }
-      }
-
-      /* 粒子效果 */
-      .particle {
-        position: absolute;
-        width: 8px;
-        height: 8px;
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 2100;
-      }
-
-      /* 背景動畫元素 */
-      .background-shapes {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-        overflow: hidden;
-      }
-
-      .shape {
-        position: absolute;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 50%;
-        animation: float 15s infinite ease-in-out;
-      }
-
-      .shape:nth-child(1) { width: 100px; height: 100px; top: 10%; left: 15%; }
-      .shape:nth-child(2) { width: 80px; height: 80px; top: 60%; left: 70%; animation-delay: 2s; }
-      .shape:nth-child(3) { width: 120px; height: 120px; top: 40%; left: 30%; animation-delay: 4s; }
-
-      @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-20px); }
+        margin: 0.5rem;
       }
     </style>
   </head>
   <body>
     <ion-app>
-      <!-- 背景動畫 -->
-      <div class="background-shapes">
-        <div class="shape"></div>
-        <div class="shape"></div>
-        <div class="shape"></div>
-      </div>
-
-      <!-- 載入動畫 -->
-      <div class="loader-container">
-        <div class="loader"></div>
-        <div class="loader-text">載入中...</div>
-      </div>
-
-      <!-- 頁面切換動畫 -->
-      <div class="page-transition">
-        <div class="transition-layer"></div>
-      </div>
-
-      <!-- 主內容 -->
-      <div class="content-container">
-        <h1 class="title">歡迎探索開源硬體</h1>
-        <p class="subtitle">發現並體驗創新的硬體解決方案</p>
-        <ion-button color="primary" id="enterButton">
-          <ion-icon name="rocket-outline" slot="start"></ion-icon>
-          開始探索
-        </ion-button>
-      </div>
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-title>開源硬體清單</ion-title>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content>
+        <div class="welcome-container">
+          <h1>歡迎體驗開源硬體清單</h1>
+          <p>探索各種開源硬體產品，請先注冊或登入以繼續</p>
+          <ion-button href="register.html" color="primary">注冊</ion-button>
+          <ion-button href="login.html" fill="outline">登入</ion-button>
+        </div>
+      </ion-content>
     </ion-app>
-    
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const loader = document.querySelector('.loader-container');
-        const content = document.querySelector('.content-container');
-        const transition = document.querySelector('.page-transition');
-        const transitionLayer = document.querySelector('.transition-layer');
-        const button = document.querySelector('#enterButton');
-
-        // 頁面載入完成後隱藏載入動畫並顯示內容
-        setTimeout(() => {
-          loader.classList.add('hidden');
-          content.classList.add('visible');
-        }, 1000); // 改為1秒
-
-        // 按鈕點擊事件處理頁面切換
-        button.addEventListener('click', (e) => {
-          e.preventDefault();
-
-          // 設置轉場層起始位置為按鈕中心
-          const rect = button.getBoundingClientRect();
-          transitionLayer.style.left = `${rect.left + rect.width / 2}px`;
-          transitionLayer.style.top = `${rect.top + rect.height / 2}px`;
-
-          // 啟動轉場動畫
-          transitionLayer.classList.add('active');
-
-          // 添加粒子效果
-          createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2);
-
-          // 動畫完成後跳轉頁面
-          setTimeout(() => {
-            window.location.href = 'apps.html';
-          }, 800); // 與動畫時間同步
-        });
-
-        // 粒子效果函數
-        function createParticles(x, y) {
-          for (let i = 0; i < 10; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            particle.style.left = `${x}px`;
-            particle.style.top = `${y}px`;
-            document.body.appendChild(particle);
-
-            const angle = Math.random() * 2 * Math.PI;
-            const distance = Math.random() * 50 + 20;
-            const duration = Math.random() * 0.5 + 0.5;
-
-            particle.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
-            particle.style.transition = `transform ${duration}s ease-out, opacity ${duration}s ease-out`;
-            particle.style.opacity = '0';
-
-            setTimeout(() => particle.remove(), duration * 1000);
-          }
-        }
-      });
-    </script>
   </body>
 </html>

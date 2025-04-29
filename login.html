@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>登入 - 開源硬體清單</title>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js"></script>
+    <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css" />
+    <!-- 更新 Ionicons 腳本 -->
+    <script type="module" src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.js"></script>
+    <style>
+      ion-content {
+        --background: #f5f7fa;
+      }
+      .auth-container {
+        padding: 2rem;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+      .auth-container ion-item {
+        margin-bottom: 1rem;
+      }
+      .auth-container ion-button {
+        margin-top: 1rem;
+      }
+      .auth-link {
+        text-align: center;
+        margin-top: 1rem;
+      }
+      .auth-link a {
+        color: var(--ion-color-primary);
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <ion-app>
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-title>登入</ion-title>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content>
+        <div class="auth-container">
+          <ion-item>
+            <ion-label position="floating">用戶名</ion-label>
+            <ion-input id="usernameInput" type="text"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="floating">密碼</ion-label>
+            <ion-input id="passwordInput" type="password"></ion-input>
+          </ion-item>
+          <ion-button id="loginButton" expand="block">登入</ion-button>
+          <div class="auth-link">
+            <a href="register.html">還沒有帳號？立即注冊</a>
+          </div>
+        </div>
+        <ion-toast id="errorToast" duration="5000" color="danger"></ion-toast>
+      </ion-content>
+    </ion-app>
+    <script>
+      const baseUrl = 'https://dae-mobile-assignment.hkit.cc/api';
+      const usernameInput = document.querySelector('#usernameInput');
+      const passwordInput = document.querySelector('#passwordInput');
+      const loginButton = document.querySelector('#loginButton');
+      const errorToast = document.querySelector('#errorToast');
+
+      loginButton?.addEventListener('click', async () => {
+        const username = usernameInput.value?.toString().trim() || '';
+        const password = passwordInput.value?.toString().trim() || '';
+
+        if (!username || !password) {
+          errorToast.message = '請輸入用戶名和密碼';
+          errorToast.present();
+          return;
+        }
+
+        try {
+          const res = await fetch(`${baseUrl}/auth/login`, {
+            method: 'POST',
+            body: JSON.stringify({ username, password }),
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          const text = await res.text(); // 先獲取原始響應
+          console.log('Login raw response:', text); // 打印原始響應
+
+          if (!res.ok) {
+            console.error('Login failed with status:', res.status, 'Response:', text);
+            errorToast.message = `登入失敗，服務器返回 ${res.status}: ${text}`;
+            errorToast.present();
+            return;
+          }
+
+          const json = JSON.parse(text); // 手動解析 JSON
+          console.log('Login parsed response:', json);
+
+          if (json.fault) {
+            errorToast.message = json.fault;
+            errorToast.present();
+            return;
+          }
+
+          if (!json.token) {
+            errorToast.message = '登入失敗：無效的憑證';
+            errorToast.present();
+            return;
+          }
+
+          localStorage.setItem('token', json.token);
+          localStorage.setItem('username', username);
+          console.log('Stored token:', localStorage.getItem('token')); // 確認 token 儲存
+
+          errorToast.message = '登入成功，即將跳轉';
+          errorToast.color = 'success';
+          errorToast.present();
+
+          setTimeout(() => {
+            window.location.href = 'apps.html';
+          }, 100); // 延遲 100ms 確保儲存完成
+        } catch (error) {
+          console.error('Login error:', error);
+          errorToast.message = '登入失敗，請檢查網絡或稍後再試';
+          errorToast.present();
+        }
+      });
+    </script>
+  </body>
+</html>
