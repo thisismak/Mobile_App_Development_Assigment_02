@@ -3,97 +3,59 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>開源硬體清單</title>
+    <title>產品列表</title>
     <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js"></script>
     <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css" />
-    <!-- 更新 Ionicons 腳本 -->
     <script type="module" src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-      ion-card { 
-        margin: 1rem; 
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
-        border-radius: 8px; 
-        overflow: hidden; 
-        animation: fadeIn 0.3s ease-in forwards; 
-        width: 100%;
-        max-width: 300px;
+      ion-content {
+        --background: var(--ion-color-light);
       }
-      .card-content { padding: 1rem; }
-      .item-title { font-weight: bold; font-size: 1.2em; margin-bottom: 0.5rem; }
-      .item-subtitle { color: var(--ion-color-medium); font-size: 0.9em; margin-bottom: 0.5rem; }
-      .item-features { 
-        display: flex; 
-        align-items: center; 
-        color: #2a7de1; 
-        margin: 0.5rem 0; 
-        font-size: 0.95em; 
-      }
-      .item-features ion-icon { margin-right: 0.5rem; font-size: 1.2em; color: #2a7de1; }
-      .item-description { 
-        display: flex; 
-        align-items: center; 
-        color: #555; 
-        margin: 0.5rem 0; 
-        font-size: 0.95em; 
-      }
-      .item-description ion-icon { margin-right: 0.5rem; font-size: 1.2em; color: #555; }
-      .tag-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
-      .item-image { 
-        width: 100%; 
-        height: auto; 
-        max-height: 200px; 
-        object-fit: cover; 
-        border-bottom: 1px solid #eee; 
-      }
-      .item-video { 
-        width: 100%; 
-        height: 200px; 
-        border: none; 
-        margin-top: 0.5rem; 
-      }
-      .bookmark-button {
-        cursor: pointer;
-        font-size: 1.5em;
-        color: var(--ion-color-primary);
-        position: absolute;
-        top: 10px;
-        right: 10px;
-      }
-      .bookmark-button.bookmarked {
-        color: var(--ion-color-danger);
-      }
-      @keyframes fadeIn { 
-        from { opacity: 0; transform: translateY(10px); } 
-        to { opacity: 1; transform: translateY(0); } 
-      }
-      .sort-direction { display: flex; gap: 1rem; margin-left: 1rem; }
-      .view-toggle { margin-left: auto; padding-right: 1rem; }
-      #statsChartContainer {
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
         padding: 1rem;
-        max-width: 600px;
-        margin: 0 auto 1rem auto;
       }
       .pagination {
-        display: flex;
-        justify-content: center;
-        gap: 1rem;
+        text-align: center;
+        margin: 1rem 0;
+      }
+      .bookmark-button {
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: blue;
+      }
+      .bookmark-button.bookmarked {
+        color: red;
+      }
+      .item-video,
+      .item-image {
+        width: 100%;
+        max-height: 200px;
+        object-fit: cover;
+      }
+      .item-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+      }
+      .item-description {
+        font-size: 0.9rem;
+        color: var(--ion-color-medium);
+      }
+      .item-subtitle {
+        font-size: 0.8rem;
+        color: var(--ion-color-dark);
+      }
+      .tag-container ion-chip {
+        --background: var(--ion-color-primary);
+        --color: white;
+      }
+      #loader {
+        text-align: center;
         padding: 1rem;
-      }
-      ion-slides {
-        padding: 1rem;
-        --bullet-background: #ccc;
-        --bullet-background-active: #2a7de1;
-      }
-      ion-slide {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      ion-card-header {
-        position: relative;
+        display: none;
       }
     </style>
   </head>
@@ -101,76 +63,24 @@
     <ion-app>
       <ion-header>
         <ion-toolbar color="primary">
-          <ion-buttons slot="start">
-            <ion-button id="refreshButton" slot="icon-only">
-              <ion-icon name="refresh"></ion-icon>
-            </ion-button>
-          </ion-buttons>
-          <ion-title>開源硬體清單</ion-title>
-          <ion-buttons slot="end" class="view-toggle">
-            <ion-button id="logoutButton">
-              <ion-icon name="log-out-outline"></ion-icon>
-              <ion-label>登出</ion-label>
-            </ion-button>
-            <ion-button id="toggleListView">
-              <ion-icon name="list-outline"></ion-icon>
-            </ion-button>
-            <ion-button id="toggleGridView">
-              <ion-icon name="grid-outline"></ion-icon>
-            </ion-button>
+          <ion-title>產品列表</ion-title>
+          <ion-buttons slot="end">
+            <ion-button id="logoutButton">登出</ion-button>
           </ion-buttons>
         </ion-toolbar>
-        <ion-searchbar placeholder="搜尋產品名稱或功能..." color="light"></ion-searchbar>
-        <ion-item lines="none">
-          <ion-label>分類</ion-label>
-          <ion-select interface="popover" multiple="true" placeholder="選擇分類（可多選）">
-            <ion-select-option value="微控制器">微控制器</ion-select-option>
-            <ion-select-option value="感測器">感測器</ion-select-option>
-            <ion-select-option value="通訊模組">通訊模組</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item lines="none">
-          <ion-label>標籤</ion-label>
-          <ion-select id="tagSelect" interface="popover" multiple="true" placeholder="選擇標籤（可多選）">
-            <ion-select-option value="Wi-Fi">Wi-Fi</ion-select-option>
-            <ion-select-option value="藍牙">藍牙</ion-select-option>
-            <ion-select-option value="低功耗">低功耗</ion-select-option>
-            <ion-select-option value="溫濕度">溫濕度</ion-select-option>
-            <ion-select-option value="測距">測距</ion-select-option>
-            <ion-select-option value="長距離">長距離</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item lines="none">
-          <ion-label>排序欄位</ion-label>
-          <ion-select id="sortField" interface="popover" placeholder="選擇排序欄位">
-            <ion-select-option value="name">名稱</ion-select-option>
-            <ion-select-option value="type">類型</ion-select-option>
-            <ion-select-option value="features">功能</ion-select-option>
-          </ion-select>
-          <div class="sort-direction">
-            <ion-radio-group id="sortDirection" value="asc">
-              <ion-item lines="none">
-                <ion-label>升冪</ion-label>
-                <ion-radio slot="start" value="asc"></ion-radio>
-              </ion-item>
-              <ion-item lines="none">
-                <ion-label>降冪</ion-label>
-                <ion-radio slot="start" value="desc"></ion-radio>
-              </ion-item>
-            </ion-radio-group>
-          </div>
-        </ion-item>
       </ion-header>
       <ion-content>
-        <ion-slides id="hardwareSlides" options="{ slidesPerView: 1, spaceBetween: 10 }">
-          <!-- 產品卡片將動態插入這裡 -->
-        </ion-slides>
-        <div class="pagination">
-          <ion-button id="prevPage" disabled>上一頁</ion-button>
-          <ion-button id="nextPage">下一頁</ion-button>
-        </div>
-        <div id="statsChartContainer">
-          <canvas id="statsChart"></canvas>
+        <div class="container">
+          <ion-slides id="hardwareSlides"></ion-slides>
+          <div id="loader">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>正在加載...</p>
+          </div>
+          <div class="pagination">
+            <ion-button id="prevPage" disabled>上一頁</ion-button>
+            <ion-button id="nextPage" disabled>下一頁</ion-button>
+            <ion-button id="refreshButton">刷新</ion-button>
+          </div>
         </div>
         <ion-toast id="errorToast" duration="5000" color="danger"></ion-toast>
         <ion-toast id="successToast" duration="3000" color="success"></ion-toast>

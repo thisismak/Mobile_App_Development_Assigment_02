@@ -11,11 +11,13 @@ const hardwareSlides = document.querySelector('#hardwareSlides') as HTMLElement;
 const prevPageButton = document.querySelector('#prevPage') as HTMLIonButtonElement;
 const nextPageButton = document.querySelector('#nextPage') as HTMLIonButtonElement;
 const logoutButton = document.querySelector('#logoutButton') as HTMLIonButtonElement;
+const loader = document.querySelector('#loader') as HTMLElement;
 
 // 分頁變數
 let currentPage = 1;
 let totalPages = 1;
 let bookmarkedItems: number[] = [];
+let isLoading = false; // 防止重複加載
 
 // Skeleton 模板
 const skeletonSlide = document.createElement('ion-slide');
@@ -180,13 +182,14 @@ function getYouTubeVideoId(url: string): string | null {
 }
 
 // 渲染產品到 UI
-function renderItems(items: any[]) {
-  hardwareSlides.textContent = '';
+function renderItems(items: any[], append: boolean = false) {
+  if (!append) {
+    hardwareSlides.textContent = '';
+  }
   for (let item of items) {
     let slide = document.createElement('ion-slide');
     let card = document.createElement('ion-card');
 
-    // 處理影片播放器
     let videoHtml = '';
     if (item.videoUrl) {
       const videoId = getYouTubeVideoId(item.videoUrl);
@@ -218,7 +221,6 @@ function renderItems(items: any[]) {
     slide.appendChild(card);
     hardwareSlides.appendChild(slide);
 
-    // 添加書籤按鈕事件
     const bookmarkIcon = card.querySelector('.bookmark-button') as HTMLIonIconElement;
     bookmarkIcon.addEventListener('click', () => {
       const itemId = parseInt(bookmarkIcon.getAttribute('data-item-id') || '0');
@@ -234,7 +236,7 @@ function renderItems(items: any[]) {
 // 更新分頁按鈕狀態
 function updatePaginationButtons() {
   prevPageButton.disabled = currentPage === 1;
-  nextPageButton.disabled = currentPage === totalPages;
+  nextPageButton.disabled = currentPage >= totalPages;
 }
 
 // 登出
@@ -245,12 +247,21 @@ function logout() {
 }
 
 // 加載產品數據
-async function loadItems() {
-  console.log('loading items...', { page: currentPage });
-  hardwareSlides.textContent = '';
-  hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
-  hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
-  hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
+async function loadItems(append: boolean = false) {
+  if (isLoading || (append && currentPage >= totalPages)) {
+    return;
+  }
+
+  isLoading = true;
+  console.log('Loading items...', { page: currentPage, append });
+  if (!append) {
+    hardwareSlides.textContent = '';
+    hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
+    hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
+    hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
+  } else {
+    loader.style.display = 'block';
+  }
 
   const token = localStorage.getItem('token') || '';
   if (!token) {
@@ -258,12 +269,14 @@ async function loadItems() {
     errorToast.message = '請登入以查看產品';
     errorToast.present();
     window.location.href = 'login.html';
+    isLoading = false;
     return;
   }
 
   try {
-    // 獲取書籤
-    bookmarkedItems = await autoRetryGetBookmarks();
+    if (!append) {
+      bookmarkedItems = await autoRetryGetBookmarks();
+    }
 
     let params = new URLSearchParams();
     params.set('page', currentPage.toString());
@@ -276,6 +289,8 @@ async function loadItems() {
       console.error('Hardware response:', text);
       errorToast.message = `加載產品失敗，服務器返回 ${res.status}`;
       errorToast.present();
+      isLoading = false;
+      loader.style.display = 'none';
       return;
     }
 
@@ -285,6 +300,8 @@ async function loadItems() {
       errorToast.message = json.error;
       errorToast.present();
       hardwareSlides.textContent = '';
+      isLoading = false;
+      loader.style.display = 'none';
       return;
     }
 
@@ -321,14 +338,31 @@ async function loadItems() {
     totalPages = Math.ceil(json.pagination.total / json.pagination.limit);
     console.log('Pagination:', { currentPage, totalPages, items: uiItems });
 
-    renderItems(uiItems);
+    renderItems(uiItems, append);
     updatePaginationButtons();
+    currentPage++;
   } catch (error) {
     console.error('Fetch error:', error);
     errorToast.message = '無法加載產品，請稍後再試';
     errorToast.present();
     hardwareSlides.textContent = '';
+  } finally {
+    isLoading = false;
+    loader.style.display = 'none';
   }
+}
+
+// 無限捲動監聽
+function setupInfiniteScroll() {
+  window.addEventListener('scroll', () => {
+    if (
+      !isLoading &&
+      window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100
+    ) {
+      console.log('Reached bottom, loading next page');
+      loadItems(true); // 追加模式
+    }
+  });
 }
 
 // 初始化分頁按鈕事件
@@ -349,10 +383,11 @@ function setupPagination() {
 }
 
 // 初始化
-if (refreshButton && errorToast && successToast && hardwareSlides && prevPageButton && nextPageButton && logoutButton) {
-  refreshButton.addEventListener('click', loadItems);
+if (refreshButton && errorToast && successToast && hardwareSlides && prevPageButton && nextPageButton && logoutButton && loader) {
+  refreshButton.addEventListener('click', () => loadItems());
   logoutButton.addEventListener('click', logout);
   setupPagination();
+  setupInfiniteScroll();
   checkAuth().then((isAuthenticated) => {
     if (isAuthenticated) {
       console.log('Authentication successful, loading items');
