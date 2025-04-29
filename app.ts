@@ -6,6 +6,7 @@ let baseUrl = "https://dae-mobile-assignment.hkit.cc/api";
 // DOM 元素
 const refreshButton = document.querySelector('#refreshButton') as HTMLIonButtonElement;
 const errorToast = document.querySelector('#errorToast') as HTMLIonToastElement;
+const successToast = document.querySelector('#successToast') as HTMLIonToastElement;
 const hardwareSlides = document.querySelector('#hardwareSlides') as HTMLElement;
 const prevPageButton = document.querySelector('#prevPage') as HTMLIonButtonElement;
 const nextPageButton = document.querySelector('#nextPage') as HTMLIonButtonElement;
@@ -14,6 +15,7 @@ const logoutButton = document.querySelector('#logoutButton') as HTMLIonButtonEle
 // 分頁變數
 let currentPage = 1;
 let totalPages = 1;
+let bookmarkedItems: number[] = [];
 
 // Skeleton 模板
 const skeletonSlide = document.createElement('ion-slide');
@@ -30,6 +32,145 @@ skeletonSlide.innerHTML = `
     </ion-card-content>
   </ion-card>
 `;
+
+// 書籤功能
+async function bookmarkItem(item_id: number, icon: HTMLIonIconElement) {
+  const token = localStorage.getItem('token') || '';
+  try {
+    const res = await fetch(`${baseUrl}/bookmarks/${item_id}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (json.error) {
+      throw new Error(json.error);
+    }
+    successToast.message = json.message === 'newly bookmarked' ? '已添加書籤' : '書籤已存在';
+    successToast.present();
+    if (json.message === 'newly bookmarked') {
+      bookmarkedItems.push(item_id);
+      icon.classList.add('bookmarked');
+      icon.name = 'bookmark';
+    }
+  } catch (error) {
+    errorToast.message = `添加書籤失敗：${error}`;
+    errorToast.present();
+  }
+}
+
+async function unBookmarkItem(item_id: number, icon: HTMLIonIconElement) {
+  const token = localStorage.getItem('token') || '';
+  try {
+    const res = await fetch(`${baseUrl}/bookmarks/${item_id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (json.error) {
+      throw new Error(json.error);
+    }
+    successToast.message = json.message === 'newly deleted' ? '已移除書籤' : '書籤已移除';
+    successToast.present();
+    if (json.message === 'newly deleted') {
+      bookmarkedItems = bookmarkedItems.filter(id => id !== item_id);
+      icon.classList.remove('bookmarked');
+      icon.name = 'bookmark-outline';
+    }
+  } catch (error) {
+    errorToast.message = `移除書籤失敗：${error}`;
+    errorToast.present();
+  }
+}
+
+async function getBookmarkItems() {
+  const token = localStorage.getItem('token') || '';
+  try {
+    const res = await fetch(`${baseUrl}/bookmarks`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (json.error) {
+      throw new Error(json.error);
+    }
+    return json.item_ids as number[];
+  } catch (error) {
+    errorToast.message = `獲取書籤失敗：${error}`;
+    errorToast.present();
+    return [];
+  }
+}
+
+async function autoRetryGetBookmarks() {
+  let error = null;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const itemIds = await getBookmarkItems();
+      return itemIds;
+    } catch (err) {
+      error = err;
+    }
+  }
+  errorToast.message = `無法獲取書籤：${error}`;
+  errorToast.present();
+  return [];
+}
+
+// 檢查登入狀態
+async function checkAuth() {
+  const token = localStorage.getItem('token') || '';
+  console.log('Token from localStorage:', token);
+  if (!token) {
+    console.log('No token found, redirecting to login');
+    window.location.href = 'login.html';
+    return false;
+  }
+
+  let error = null;
+  for (let i = 0; i < 3; i++) {
+    try {
+      console.log('Checking auth with token:', token.substring(0, 10) + '...');
+      const res = await fetch(`${baseUrl}/auth/check`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Auth check status:', res.status);
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Auth check response:', text);
+        errorToast.message = `認證失敗，服務器返回 ${res.status}: ${text}`;
+        errorToast.present();
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('username');
+          window.location.href = 'login.html';
+          return false;
+        }
+        continue; // 重試
+      }
+
+      const json = await res.json();
+      console.log('Auth check JSON:', json);
+      if (!json.user_id) {
+        console.log('Invalid user_id, redirecting to login');
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        window.location.href = 'login.html';
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      error = err;
+      console.error('Check auth error, retrying:', err);
+    }
+  }
+
+  console.error('All retries failed:', error);
+  errorToast.message = '認證失敗，請檢查網絡或稍後再試';
+  errorToast.present();
+  return false; // 不清除 token，允許用戶重試
+}
 
 // 提取 YouTube 影片 ID
 function getYouTubeVideoId(url: string): string | null {
@@ -56,11 +197,13 @@ function renderItems(items: any[]) {
       }
     }
 
+    const isBookmarked = bookmarkedItems.includes(item.id);
     card.innerHTML = `
       <img class="item-image" src="${item.imageUrl}" alt="${item.title}" />
       ${videoHtml}
       <ion-card-header>
         <ion-card-title class="item-title">${item.title}</ion-card-title>
+        <ion-icon class="bookmark-button${isBookmarked ? ' bookmarked' : ''}" name="${isBookmarked ? 'bookmark' : 'bookmark-outline'}" data-item-id="${item.id}"></ion-icon>
       </ion-card-header>
       <ion-card-content class="card-content">
         <p class="item-description">${item.details}</p>
@@ -74,6 +217,17 @@ function renderItems(items: any[]) {
     `;
     slide.appendChild(card);
     hardwareSlides.appendChild(slide);
+
+    // 添加書籤按鈕事件
+    const bookmarkIcon = card.querySelector('.bookmark-button') as HTMLIonIconElement;
+    bookmarkIcon.addEventListener('click', () => {
+      const itemId = parseInt(bookmarkIcon.getAttribute('data-item-id') || '0');
+      if (isBookmarked) {
+        unBookmarkItem(itemId, bookmarkIcon);
+      } else {
+        bookmarkItem(itemId, bookmarkIcon);
+      }
+    });
   }
 }
 
@@ -81,79 +235,6 @@ function renderItems(items: any[]) {
 function updatePaginationButtons() {
   prevPageButton.disabled = currentPage === 1;
   nextPageButton.disabled = currentPage === totalPages;
-}
-
-// 統一錯誤處理
-function handleApiError(message: string, error?: any) {
-  console.error(message, error);
-  errorToast.message = message;
-  errorToast.present();
-  localStorage.removeItem('token');
-  localStorage.removeItem('username');
-  setTimeout(() => {
-    window.location.href = 'login.html';
-  }, 2000); // 延遲 2 秒，讓用戶看到提示
-}
-
-// 檢查登入狀態（帶重試機制）
-async function checkAuth(retryCount = 3, retryDelay = 1000): Promise<boolean> {
-  const token = localStorage.getItem('token') || '';
-  if (!token) {
-    console.log('No token found, redirecting to login');
-    handleApiError('請先登錄');
-    return false;
-  }
-
-  for (let attempt = 1; attempt <= retryCount; attempt++) {
-    try {
-      console.log(`Checking auth with token (attempt ${attempt}/${retryCount}):`, token.substring(0, 10) + '...');
-      const res = await fetch(`${baseUrl}/auth/check`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const text = await res.text(); // 先獲取原始響應
-      console.log(`Auth check raw response (attempt ${attempt}):`, text);
-
-      if (!res.ok) {
-        console.error(`Auth check failed with status (attempt ${attempt}):`, res.status, 'Response:', text);
-        const json = text ? JSON.parse(text) : {};
-        if (res.status === 401) {
-          handleApiError('登錄憑證無效或已過期，請重新登錄');
-          return false;
-        } else if (res.status === 500 && attempt < retryCount) {
-          console.log(`Retrying auth check after ${retryDelay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          continue; // 重試
-        } else {
-          handleApiError(`認證失敗，服務器錯誤 (${res.status})：${json.error || '請稍後再試'}`);
-          return false;
-        }
-      }
-
-      const json = JSON.parse(text); // 手動解析 JSON
-      console.log(`Auth check parsed result (attempt ${attempt}):`, json);
-
-      if (!json.user_id) {
-        console.log('Invalid user_id, redirecting to login');
-        handleApiError('無效的用戶 ID，請重新登錄');
-        return false;
-      }
-
-      return true; // 認證成功
-    } catch (error) {
-      console.error(`Check auth error (attempt ${attempt}):`, error);
-      if (attempt < retryCount) {
-        console.log(`Retrying auth check after ${retryDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        continue; // 重試
-      }
-      handleApiError('認證失敗，請檢查網絡或稍後再試', error);
-      return false;
-    }
-  }
-
-  return false; // 所有重試均失敗
 }
 
 // 登出
@@ -174,18 +255,22 @@ async function loadItems() {
   const token = localStorage.getItem('token') || '';
   if (!token) {
     hardwareSlides.textContent = '';
-    handleApiError('請登入以查看產品');
+    errorToast.message = '請登入以查看產品';
+    errorToast.present();
+    window.location.href = 'login.html';
     return;
   }
 
   try {
+    // 獲取書籤
+    bookmarkedItems = await autoRetryGetBookmarks();
+
     let params = new URLSearchParams();
     params.set('page', currentPage.toString());
     let res = await fetch(`${baseUrl}/hardware?${params}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
     });
-
     if (!res.ok) {
       const text = await res.text();
       console.error('Hardware response:', text);
@@ -221,6 +306,7 @@ async function loadItems() {
     let serverItems = json.items as ServerItem[];
     let uiItems = serverItems.map((item: ServerItem) => {
       return {
+        id: item.id,
         title: item.title,
         language: item.components.join(', '),
         details: item.description,
@@ -263,19 +349,17 @@ function setupPagination() {
 }
 
 // 初始化
-if (refreshButton && errorToast && hardwareSlides && prevPageButton && nextPageButton && logoutButton) {
+if (refreshButton && errorToast && successToast && hardwareSlides && prevPageButton && nextPageButton && logoutButton) {
   refreshButton.addEventListener('click', loadItems);
   logoutButton.addEventListener('click', logout);
   setupPagination();
-  document.addEventListener('DOMContentLoaded', () => {
-    checkAuth().then((isAuthenticated) => {
-      if (isAuthenticated) {
-        console.log('Authentication successful, loading items');
-        loadItems();
-      } else {
-        console.log('Authentication failed, redirected to login');
-      }
-    });
+  checkAuth().then((isAuthenticated) => {
+    if (isAuthenticated) {
+      console.log('Authentication successful, loading items');
+      loadItems();
+    } else {
+      console.log('Authentication failed, redirected to login');
+    }
   });
 } else {
   console.error('Required DOM elements are missing');
