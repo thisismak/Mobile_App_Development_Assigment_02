@@ -12,17 +12,19 @@ const prevPageButton = document.querySelector('#prevPage') as HTMLIonButtonEleme
 const nextPageButton = document.querySelector('#nextPage') as HTMLIonButtonElement;
 const logoutButton = document.querySelector('#logoutButton') as HTMLIonButtonElement;
 const loader = document.querySelector('#loader') as HTMLElement;
-const searchInput = document.querySelector('#searchInput') as HTMLIonInputElement;
+const searchInput = document.querySelector('#searchInput') as HTMLIonInputElement | null;
 const searchButton = document.querySelector('#searchButton') as HTMLIonButtonElement;
 const clearSearchButton = document.querySelector('#clearSearchButton') as HTMLIonButtonElement;
+const categorySelect = document.querySelector('#categorySelect') as HTMLIonSelectElement | null;
 
-// 分頁與搜尋變數
+// 分頁與過濾變數
 let currentPage = 1;
 let totalPages = 1;
 let bookmarkedItems: number[] = [];
 let isLoading = false;
 let searchQuery: string | null = null;
-let isBookmarksLoaded = false; // 追蹤書籤是否已加載
+let categoryFilter: string | null = null;
+let isBookmarksLoaded = false;
 
 // Skeleton 模板
 const skeletonSlide = document.createElement('ion-slide');
@@ -125,6 +127,45 @@ async function autoRetryGetBookmarks() {
   }
   console.error('All retries failed:', error);
   return [];
+}
+
+// 獲取類別列表
+async function getCategories() {
+  const token = localStorage.getItem('token') || '';
+  try {
+    const res = await fetch(`${baseUrl}/hardware?page=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      throw new Error(`服務器返回 ${res.status}`);
+    }
+    const json = await res.json();
+    if (json.error) {
+      throw new Error(json.error);
+    }
+    const categories = Array.from(
+      new Set(json.items.map((item: any) => item.category))
+    ) as string[];
+    return categories;
+  } catch (error) {
+    console.error('Get categories error:', error);
+    errorToast.message = `獲取類別失敗：${error}`;
+    errorToast.present();
+    return [];
+  }
+}
+
+// 填充類別選擇框
+async function populateCategories() {
+  if (!categorySelect) {
+    console.error('Category select not found');
+    return;
+  }
+  const categories = await getCategories();
+  categorySelect.innerHTML = `
+    <ion-select-option value="">全部</ion-select-option>
+    ${categories.map(category => `<ion-select-option value="${category}">${category}</ion-select-option>`).join('')}
+  `;
 }
 
 // 檢查登入狀態
@@ -263,7 +304,7 @@ async function loadItems(append: boolean = false) {
   }
 
   isLoading = true;
-  console.log('Loading items...', { page: currentPage, append, search: searchQuery });
+  console.log('Loading items...', { page: currentPage, append, search: searchQuery, category: categoryFilter });
   if (!append) {
     hardwareSlides.textContent = '';
     hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
@@ -285,7 +326,6 @@ async function loadItems(append: boolean = false) {
   }
 
   try {
-    // 僅在首次加載或書籤未加載時獲取書籤
     if (!append && !isBookmarksLoaded) {
       bookmarkedItems = await autoRetryGetBookmarks();
     }
@@ -294,6 +334,9 @@ async function loadItems(append: boolean = false) {
     params.set('page', currentPage.toString());
     if (searchQuery) {
       params.set('search', searchQuery);
+    }
+    if (categoryFilter) {
+      params.set('category', categoryFilter);
     }
     let res = await fetch(`${baseUrl}/hardware?${params}`, {
       method: 'GET',
@@ -384,29 +427,51 @@ function setupInfiniteScroll() {
   });
 }
 
-// 搜尋功能
-function setupSearch() {
+// 搜尋與過濾功能
+function setupSearchAndFilter() {
+  if (!searchInput || !searchButton || !clearSearchButton || !categorySelect) {
+    console.error('Search or filter elements not found');
+    errorToast.message = '搜尋或過濾功能初始化失敗';
+    errorToast.present();
+    return;
+  }
+
   searchButton.addEventListener('click', () => {
-    searchQuery = searchInput.value.trim();
+    const query = searchInput.value ? searchInput.value.trim() : '';
+    searchQuery = query || null;
     currentPage = 1;
-    console.log('Search initiated:', { query: searchQuery });
+    console.log('Search initiated:', { query: searchQuery, category: categoryFilter });
     loadItems();
   });
 
   searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-      searchQuery = searchInput.value.trim();
+      const query = searchInput.value ? searchInput.value.trim() : '';
+      searchQuery = query || null;
       currentPage = 1;
-      console.log('Search initiated via Enter:', { query: searchQuery });
+      console.log('Search initiated via Enter:', { query: searchQuery, category: categoryFilter });
       loadItems();
     }
   });
 
-  clearSearchButton.addEventListener('click', () => {
-    searchInput.value = '';
-    searchQuery = null;
+  categorySelect.addEventListener('ionChange', (e: CustomEvent) => {
+    categoryFilter = e.detail.value || null;
     currentPage = 1;
-    console.log('Search cleared');
+    console.log('Category filter changed:', { category: categoryFilter, query: searchQuery });
+    loadItems();
+  });
+
+  clearSearchButton.addEventListener('click', () => {
+    if (searchInput) {
+      searchInput.value = '';
+    }
+    if (categorySelect) {
+      categorySelect.value = '';
+    }
+    searchQuery = null;
+    categoryFilter = null;
+    currentPage = 1;
+    console.log('Search and filter cleared');
     loadItems();
   });
 }
@@ -440,17 +505,19 @@ if (
   loader &&
   searchInput &&
   searchButton &&
-  clearSearchButton
+  clearSearchButton &&
+  categorySelect
 ) {
   refreshButton.addEventListener('click', () => loadItems());
   logoutButton.addEventListener('click', logout);
   setupPagination();
   setupInfiniteScroll();
-  setupSearch();
+  setupSearchAndFilter();
   checkAuth().then(async (isAuthenticated) => {
     if (isAuthenticated) {
       console.log('Authentication successful, loading items');
-      bookmarkedItems = await autoRetryGetBookmarks(); // 頁面初始化時加載書籤
+      await populateCategories();
+      bookmarkedItems = await autoRetryGetBookmarks();
       loadItems();
     } else {
       console.log('Authentication failed, redirected to login');

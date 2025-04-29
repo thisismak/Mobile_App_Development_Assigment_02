@@ -18,15 +18,19 @@
         margin: 0 auto;
         padding: 1rem;
       }
-      .search-bar {
+      .filter-bar {
         margin-bottom: 1rem;
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        flex-wrap: wrap;
       }
-      .search-bar ion-input {
+      .filter-bar ion-input,
+      .filter-bar ion-select {
         --background: white;
         --border-radius: 8px;
+        flex: 1;
+        min-width: 150px;
       }
       .pagination {
         text-align: center;
@@ -84,8 +88,12 @@
       </ion-header>
       <ion-content>
         <div class="container">
-          <div class="search-bar">
+          <div class="filter-bar">
             <ion-input id="searchInput" placeholder="輸入關鍵字搜尋產品..." type="text"></ion-input>
+            <ion-select id="categorySelect" placeholder="選擇類別" interface="popover">
+              <ion-select-option value="">全部</ion-select-option>
+              <!-- 類別將由 app.ts 動態填充 -->
+            </ion-select>
             <ion-button id="searchButton">搜尋</ion-button>
             <ion-button id="clearSearchButton" fill="outline">清除</ion-button>
           </div>
