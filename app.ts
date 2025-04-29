@@ -30,14 +30,36 @@ skeletonSlide.innerHTML = `
   </ion-card>
 `;
 
+// 提取 YouTube 影片 ID
+function getYouTubeVideoId(url: string): string | null {
+  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
+}
+
 // 渲染產品到 UI
 function renderItems(items: any[]) {
   hardwareSlides.textContent = '';
   for (let item of items) {
     let slide = document.createElement('ion-slide');
     let card = document.createElement('ion-card');
+
+    // 處理影片播放器
+    let videoHtml = '';
+    if (item.videoUrl) {
+      const videoId = getYouTubeVideoId(item.videoUrl);
+      if (videoId) {
+        // YouTube 影片
+        videoHtml = `<iframe class="item-video" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      } else if (item.videoUrl.endsWith('.mp4') || item.videoUrl.endsWith('.webm') || item.videoUrl.endsWith('.ogg')) {
+        // 其他影片格式
+        videoHtml = `<video class="item-video" controls><source src="${item.videoUrl}" type="video/${item.videoUrl.split('.').pop()}"></video>`;
+      }
+    }
+
     card.innerHTML = `
       <img class="item-image" src="${item.imageUrl}" alt="${item.title}" />
+      ${videoHtml}
       <ion-card-header>
         <ion-card-title class="item-title">${item.title}</ion-card-title>
       </ion-card-header>
