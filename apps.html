@@ -18,6 +18,16 @@
         margin: 0 auto;
         padding: 1rem;
       }
+      .search-bar {
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .search-bar ion-input {
+        --background: white;
+        --border-radius: 8px;
+      }
       .pagination {
         text-align: center;
         margin: 1rem 0;
@@ -26,6 +36,9 @@
         font-size: 1.5rem;
         cursor: pointer;
         color: blue;
+        position: absolute;
+        top: 10px;
+        right: 10px;
       }
       .bookmark-button.bookmarked {
         color: red;
@@ -71,6 +84,11 @@
       </ion-header>
       <ion-content>
         <div class="container">
+          <div class="search-bar">
+            <ion-input id="searchInput" placeholder="輸入關鍵字搜尋產品..." type="text"></ion-input>
+            <ion-button id="searchButton">搜尋</ion-button>
+            <ion-button id="clearSearchButton" fill="outline">清除</ion-button>
+          </div>
           <ion-slides id="hardwareSlides"></ion-slides>
           <div id="loader">
             <ion-spinner name="crescent"></ion-spinner>

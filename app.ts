@@ -12,12 +12,17 @@ const prevPageButton = document.querySelector('#prevPage') as HTMLIonButtonEleme
 const nextPageButton = document.querySelector('#nextPage') as HTMLIonButtonElement;
 const logoutButton = document.querySelector('#logoutButton') as HTMLIonButtonElement;
 const loader = document.querySelector('#loader') as HTMLElement;
+const searchInput = document.querySelector('#searchInput') as HTMLIonInputElement;
+const searchButton = document.querySelector('#searchButton') as HTMLIonButtonElement;
+const clearSearchButton = document.querySelector('#clearSearchButton') as HTMLIonButtonElement;
 
-// 分頁變數
+// 分頁與搜尋變數
 let currentPage = 1;
 let totalPages = 1;
 let bookmarkedItems: number[] = [];
-let isLoading = false; // 防止重複加載
+let isLoading = false;
+let searchQuery: string | null = null;
+let isBookmarksLoaded = false; // 追蹤書籤是否已加載
 
 // Skeleton 模板
 const skeletonSlide = document.createElement('ion-slide');
@@ -86,16 +91,21 @@ async function unBookmarkItem(item_id: number, icon: HTMLIonIconElement) {
 
 async function getBookmarkItems() {
   const token = localStorage.getItem('token') || '';
+  console.log('Fetching bookmarks with token:', token.substring(0, 10) + '...');
   try {
     const res = await fetch(`${baseUrl}/bookmarks`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    console.log('Bookmarks response status:', res.status);
     const json = await res.json();
+    console.log('Bookmarks response:', json);
     if (json.error) {
       throw new Error(json.error);
     }
+    isBookmarksLoaded = true;
     return json.item_ids as number[];
   } catch (error) {
+    console.error('Get bookmarks error:', error);
     errorToast.message = `獲取書籤失敗：${error}`;
     errorToast.present();
     return [];
@@ -110,10 +120,10 @@ async function autoRetryGetBookmarks() {
       return itemIds;
     } catch (err) {
       error = err;
+      console.error('Retry get bookmarks:', err);
     }
   }
-  errorToast.message = `無法獲取書籤：${error}`;
-  errorToast.present();
+  console.error('All retries failed:', error);
   return [];
 }
 
@@ -148,7 +158,7 @@ async function checkAuth() {
           window.location.href = 'login.html';
           return false;
         }
-        continue; // 重試
+        continue;
       }
 
       const json = await res.json();
@@ -171,7 +181,7 @@ async function checkAuth() {
   console.error('All retries failed:', error);
   errorToast.message = '認證失敗，請檢查網絡或稍後再試';
   errorToast.present();
-  return false; // 不清除 token，允許用戶重試
+  return false;
 }
 
 // 提取 YouTube 影片 ID
@@ -253,7 +263,7 @@ async function loadItems(append: boolean = false) {
   }
 
   isLoading = true;
-  console.log('Loading items...', { page: currentPage, append });
+  console.log('Loading items...', { page: currentPage, append, search: searchQuery });
   if (!append) {
     hardwareSlides.textContent = '';
     hardwareSlides.appendChild(skeletonSlide.cloneNode(true));
@@ -270,16 +280,21 @@ async function loadItems(append: boolean = false) {
     errorToast.present();
     window.location.href = 'login.html';
     isLoading = false;
+    loader.style.display = 'none';
     return;
   }
 
   try {
-    if (!append) {
+    // 僅在首次加載或書籤未加載時獲取書籤
+    if (!append && !isBookmarksLoaded) {
       bookmarkedItems = await autoRetryGetBookmarks();
     }
 
     let params = new URLSearchParams();
     params.set('page', currentPage.toString());
+    if (searchQuery) {
+      params.set('search', searchQuery);
+    }
     let res = await fetch(`${baseUrl}/hardware?${params}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
@@ -340,6 +355,10 @@ async function loadItems(append: boolean = false) {
 
     renderItems(uiItems, append);
     updatePaginationButtons();
+    if (uiItems.length === 0 && !append) {
+      errorToast.message = '未找到匹配的產品';
+      errorToast.present();
+    }
     currentPage++;
   } catch (error) {
     console.error('Fetch error:', error);
@@ -360,8 +379,35 @@ function setupInfiniteScroll() {
       window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100
     ) {
       console.log('Reached bottom, loading next page');
-      loadItems(true); // 追加模式
+      loadItems(true);
     }
+  });
+}
+
+// 搜尋功能
+function setupSearch() {
+  searchButton.addEventListener('click', () => {
+    searchQuery = searchInput.value.trim();
+    currentPage = 1;
+    console.log('Search initiated:', { query: searchQuery });
+    loadItems();
+  });
+
+  searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      searchQuery = searchInput.value.trim();
+      currentPage = 1;
+      console.log('Search initiated via Enter:', { query: searchQuery });
+      loadItems();
+    }
+  });
+
+  clearSearchButton.addEventListener('click', () => {
+    searchInput.value = '';
+    searchQuery = null;
+    currentPage = 1;
+    console.log('Search cleared');
+    loadItems();
   });
 }
 
@@ -383,14 +429,28 @@ function setupPagination() {
 }
 
 // 初始化
-if (refreshButton && errorToast && successToast && hardwareSlides && prevPageButton && nextPageButton && logoutButton && loader) {
+if (
+  refreshButton &&
+  errorToast &&
+  successToast &&
+  hardwareSlides &&
+  prevPageButton &&
+  nextPageButton &&
+  logoutButton &&
+  loader &&
+  searchInput &&
+  searchButton &&
+  clearSearchButton
+) {
   refreshButton.addEventListener('click', () => loadItems());
   logoutButton.addEventListener('click', logout);
   setupPagination();
   setupInfiniteScroll();
-  checkAuth().then((isAuthenticated) => {
+  setupSearch();
+  checkAuth().then(async (isAuthenticated) => {
     if (isAuthenticated) {
       console.log('Authentication successful, loading items');
+      bookmarkedItems = await autoRetryGetBookmarks(); // 頁面初始化時加載書籤
       loadItems();
     } else {
       console.log('Authentication failed, redirected to login');
