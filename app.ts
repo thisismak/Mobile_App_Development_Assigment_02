@@ -45,6 +45,25 @@ skeletonSlide.innerHTML = `
   </ion-card>
 `;
 
+// 驗證搜尋關鍵字
+function validateSearchQuery(query: string): { valid: boolean; message: string } {
+  const trimmedQuery = query.trim();
+  // 檢查是否為空
+  if (!trimmedQuery) {
+    return { valid: false, message: '搜尋關鍵字不能為空' };
+  }
+  // 檢查長度（1-50 字符）
+  if (trimmedQuery.length < 1 || trimmedQuery.length > 50) {
+    return { valid: false, message: '關鍵字長度必須在 1 到 50 個字符之間' };
+  }
+  // 檢查非法字符（允許字母、數字、空格、常見標點）
+  const invalidCharRegex = /[<>;{}()[\]\\/*+=|]/;
+  if (invalidCharRegex.test(trimmedQuery)) {
+    return { valid: false, message: '關鍵字包含非法字符（例如 <, >, ;）' };
+  }
+  return { valid: true, message: '' };
+}
+
 // 書籤功能
 async function bookmarkItem(item_id: number, icon: HTMLIonIconElement) {
   const token = localStorage.getItem('token') || '';
@@ -445,6 +464,12 @@ function setupSearchFilterAndSort() {
 
   searchButton.addEventListener('click', () => {
     const query = searchInput.value ? searchInput.value.trim() : '';
+    const validation = validateSearchQuery(query);
+    if (!validation.valid && query) {
+      errorToast.message = validation.message;
+      errorToast.present();
+      return;
+    }
     searchQuery = query || null;
     currentPage = 1;
     console.log('Search initiated:', { query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
@@ -454,6 +479,12 @@ function setupSearchFilterAndSort() {
   searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       const query = searchInput.value ? searchInput.value.trim() : '';
+      const validation = validateSearchQuery(query);
+      if (!validation.valid && query) {
+        errorToast.message = validation.message;
+        errorToast.present();
+        return;
+      }
       searchQuery = query || null;
       currentPage = 1;
       console.log('Search initiated via Enter:', { query: searchQuery, category: categoryFilter, sort: sortField, order: sortOrder });
